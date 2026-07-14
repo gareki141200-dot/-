@@ -277,11 +277,12 @@ function openRecipeForm(id){
   modal.hidden = false;
 }
 document.getElementById("btn-new-recipe").addEventListener("click", ()=> openRecipeForm(null));
-document.getElementById("btn-close-recipe").addEventListener("click", ()=>{
-  document.getElementById("modal-recipe").hidden = true;
-});
-document.getElementById("btn-close-recipe-bottom").addEventListener("click", ()=>{
-  document.getElementById("modal-recipe").hidden = true;
+
+// モーダルの背景(カードの外側)をタップしたら、保存せずに閉じる
+document.getElementById("modal-recipe").addEventListener("click", (e)=>{
+  if(e.target.id === "modal-recipe"){
+    document.getElementById("modal-recipe").hidden = true;
+  }
 });
 
 function parseIngredientsText(text){
@@ -301,7 +302,7 @@ document.getElementById("form-recipe").addEventListener("submit", (e)=>{
   const recipe = {
     id: state.editingRecipeId || ("r_" + Date.now()),
     name: document.getElementById("f-name").value.trim(),
-    category: document.getElementById("f-category").value,
+    category: document.getElementById("f-category").value.trim(),
     ingredients: parseIngredientsText(document.getElementById("f-ingredients").value),
     processedFree: document.getElementById("f-processedfree").checked,
     notes: document.getElementById("f-notes").value.trim()
