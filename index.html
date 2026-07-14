@@ -93,12 +93,13 @@
           <input type="text" id="f-name" required placeholder="例:鶏むねの生姜焼き">
         </label>
         <label class="field">
-          <span>種類</span>
-          <select id="f-category">
-            <option value="主菜">主菜</option>
-            <option value="副菜">副菜</option>
-            <option value="汁物">汁物</option>
-          </select>
+          <span>種類(自由に入力できます。候補をタップも可)</span>
+          <input type="text" id="f-category" list="category-options" required placeholder="例:主菜、麺類、お弁当のおかず など">
+          <datalist id="category-options">
+            <option value="主菜">
+            <option value="副菜">
+            <option value="汁物">
+          </datalist>
         </label>
         <label class="field">
           <span>材料(1行に1つ。例: 鶏むね肉 200 g)</span>
@@ -116,6 +117,7 @@
           <button type="button" class="danger-btn" id="btn-delete-recipe" hidden>削除する</button>
           <button type="submit" class="decide-btn small">保存する</button>
         </div>
+        <button type="button" class="text-btn modal-bottom-close" id="btn-close-recipe-bottom">閉じる</button>
       </form>
     </div>
   </div>

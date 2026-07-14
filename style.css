@@ -243,8 +243,14 @@ button, input, textarea, select{ font-family:inherit; }
   animation:slideup .2s ease;
 }
 @keyframes slideup{ from{transform:translateY(16px); opacity:0;} to{transform:none; opacity:1;} }
-.modal-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.modal-head{
+  display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;
+  position:sticky; top:0; background:var(--paper); padding:4px 0 10px; z-index:2;
+}
 .modal-head h3{ font-family:var(--font-display); margin:0; font-size:18px; }
+.modal-bottom-close{
+  display:block; width:100%; text-align:center; padding:12px 0 4px; font-size:13px;
+}
 
 .field{ display:block; margin-bottom:14px; font-size:13px; color:var(--ink-soft); }
 .field span{ display:block; margin-bottom:6px; }
