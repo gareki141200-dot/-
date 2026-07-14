@@ -233,6 +233,7 @@ button, input, textarea, select{ font-family:inherit; }
 }
 
 /* ---------- モーダル(フォーム) ---------- */
+.modal[hidden]{ display:none !important; }
 .modal{
   position:fixed; inset:0; background:rgba(35,42,33,0.45);
   display:flex; align-items:flex-end; z-index:50;
