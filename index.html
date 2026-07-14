@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="theme-color" content="#232A21">
+<title>献立ノート</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===== ヘッダー ===== -->
+  <header class="topbar">
+    <span class="topbar-eyebrow">今日の台所</span>
+    <h1 class="topbar-title">献立ノート</h1>
+  </header>
+
+  <!-- ===== ホーム ===== -->
+  <section class="screen" id="screen-home" data-screen>
+    <div class="paper-block home-hero">
+      <p class="hero-date" id="home-date">—</p>
+      <p class="hero-lead">今日は、何をつくろうか。</p>
+      <button class="stamp-btn" id="btn-go-suggest">
+        <span class="stamp-ring"></span>
+        <span class="stamp-text">献立を<br>決める</span>
+      </button>
+    </div>
+
+    <div class="paper-block">
+      <div class="block-head">
+        <h2>これまでの献立</h2>
+        <span class="block-sub" id="history-count">0件</span>
+      </div>
+      <ul class="history-list" id="history-list">
+        <li class="empty-note">まだ履歴がありません。献立を決めると、ここに並びます。</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== 献立提案 ===== -->
+  <section class="screen" id="screen-suggest" data-screen hidden>
+    <div class="block-head sticky-head">
+      <button class="text-btn" data-back="screen-home">← もどる</button>
+      <h2>今日の献立提案</h2>
+    </div>
+
+    <div class="dish-set" id="dish-set"><!-- JS生成 --></div>
+
+    <div class="suggest-actions">
+      <button class="ghost-btn" id="btn-reroll">🔄 別の提案にする</button>
+      <button class="decide-btn" id="btn-decide">この献立に決定する</button>
+    </div>
+
+    <div class="note-card">
+      <p class="note-title">この提案について</p>
+      <p class="note-body">栄養に関する記載は一般的な栄養学の知見にもとづく参考情報であり、医学的な診断・治療の助言ではありません。持病等がある場合は医師にご相談ください。</p>
+    </div>
+  </section>
+
+  <!-- ===== レシピ管理 ===== -->
+  <section class="screen" id="screen-recipe" data-screen hidden>
+    <div class="block-head sticky-head">
+      <h2>レシピ帳</h2>
+      <button class="round-add-btn" id="btn-new-recipe">＋</button>
+    </div>
+    <div class="tab-row" id="recipe-filter">
+      <button class="tab-chip active" data-cat="all">すべて</button>
+      <button class="tab-chip" data-cat="主菜">主菜</button>
+      <button class="tab-chip" data-cat="副菜">副菜</button>
+      <button class="tab-chip" data-cat="汁物">汁物</button>
+    </div>
+    <ul class="recipe-list" id="recipe-list"></ul>
+  </section>
+
+  <!-- ===== レシピ編集フォーム(モーダル) ===== -->
+  <div class="modal" id="modal-recipe" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="recipe-form-title">レシピを追加</h3>
+        <button class="text-btn" id="btn-close-recipe">閉じる</button>
+      </div>
+      <form id="form-recipe">
+        <label class="field">
+          <span>料理名</span>
+          <input type="text" id="f-name" required placeholder="例:鶏むねの生姜焼き">
+        </label>
+        <label class="field">
+          <span>種類</span>
+          <select id="f-category">
+            <option value="主菜">主菜</option>
+            <option value="副菜">副菜</option>
+            <option value="汁物">汁物</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>材料(1行に1つ。例: 鶏むね肉 200 g)</span>
+          <textarea id="f-ingredients" rows="4" placeholder="鶏むね肉 200 g&#10;しょうが 1 かけ&#10;醤油 大さじ 1"></textarea>
+        </label>
+        <label class="checkfield">
+          <input type="checkbox" id="f-processedfree" checked>
+          <span>加工食品・添加物を使わない構成</span>
+        </label>
+        <label class="field">
+          <span>メモ・ひとこと</span>
+          <textarea id="f-notes" rows="2" placeholder="栄養ポイントや作り方のコツなど"></textarea>
+        </label>
+        <div class="form-actions">
+          <button type="button" class="danger-btn" id="btn-delete-recipe" hidden>削除する</button>
+          <button type="submit" class="decide-btn small">保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== 買い物リスト ===== -->
+  <section class="screen" id="screen-shopping" data-screen hidden>
+    <div class="block-head sticky-head">
+      <h2>買い物リスト</h2>
+      <button class="text-btn" id="btn-clear-checked">済みを削除</button>
+    </div>
+    <ul class="shopping-list" id="shopping-list"></ul>
+    <form class="add-item-row" id="form-add-item">
+      <input type="text" id="new-item-name" placeholder="品目を追加(例:にんじん)" required>
+      <input type="text" id="new-item-amount" placeholder="量" size="6">
+      <button type="submit" class="round-add-btn" aria-label="追加">＋</button>
+    </form>
+  </section>
+
+  <!-- ===== 設定 ===== -->
+  <section class="screen" id="screen-settings" data-screen hidden>
+    <div class="block-head"><h2>設定</h2></div>
+
+    <div class="paper-block">
+      <h3 class="sub-head">避けたい食材・アレルギー</h3>
+      <div class="chip-row" id="exclusion-chips"></div>
+      <form class="add-item-row" id="form-add-exclusion">
+        <input type="text" id="new-exclusion" placeholder="例:えび、そば粉" required>
+        <button type="submit" class="round-add-btn" aria-label="追加">＋</button>
+      </form>
+    </div>
+
+    <div class="paper-block">
+      <h3 class="sub-head">無添加・オーガニック志向</h3>
+      <div class="radio-row" id="organic-pref">
+        <label class="radio-pill"><input type="radio" name="organic" value="strict"><span>できるだけ避ける</span></label>
+        <label class="radio-pill"><input type="radio" name="organic" value="normal"><span>こだわらない</span></label>
+      </div>
+    </div>
+
+    <div class="paper-block">
+      <h3 class="sub-head">栄養の参考情報について</h3>
+      <p class="note-body">本アプリの栄養関連の表示は、一般に知られる栄養学の知見をもとにした参考情報です。個別の健康状態に応じた診断や治療の代わりにはなりません。</p>
+    </div>
+
+    <div class="paper-block">
+      <h3 class="sub-head">データ管理</h3>
+      <p class="note-body">すべてのデータはこの端末内にのみ保存されています。外部には送信されません。</p>
+      <button class="danger-btn" id="btn-reset-all">すべてのデータを初期化する</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- ===== 下部ナビゲーション ===== -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-nav="screen-home">
+    <span class="nav-icon">🏠</span><span>ホーム</span>
+  </button>
+  <button class="nav-btn" data-nav="screen-recipe">
+    <span class="nav-icon">📖</span><span>レシピ</span>
+  </button>
+  <button class="nav-btn" data-nav="screen-shopping">
+    <span class="nav-icon">🧺</span><span>買い物</span>
+  </button>
+  <button class="nav-btn" data-nav="screen-settings">
+    <span class="nav-icon">⚙️</span><span>設定</span>
+  </button>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
