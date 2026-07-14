@@ -256,6 +256,7 @@ function openRecipeForm(id){
   const modal = document.getElementById("modal-recipe");
   const form = document.getElementById("form-recipe");
   form.reset();
+  document.getElementById("form-error").hidden = true;
   document.getElementById("btn-delete-recipe").hidden = true;
   state.editingRecipeId = null;
 
@@ -299,10 +300,28 @@ function parseIngredientsText(text){
 
 document.getElementById("form-recipe").addEventListener("submit", (e)=>{
   e.preventDefault();
+
+  const errorEl = document.getElementById("form-error");
+  errorEl.hidden = true;
+
+  const name = document.getElementById("f-name").value.trim();
+  const category = document.getElementById("f-category").value.trim();
+
+  // 入力チェック(ブラウザ標準のエラー表示はスクロール内に隠れて見えないことがあるため、
+  // 自前でわかりやすく表示する)
+  if(!name || !category){
+    errorEl.textContent = !name
+      ? "料理名を入力してください。"
+      : "種類を入力してください(例:主菜)。";
+    errorEl.hidden = false;
+    errorEl.scrollIntoView({ block:"center", behavior:"smooth" });
+    return; // ここで処理を止め、モーダルは閉じない
+  }
+
   const recipe = {
     id: state.editingRecipeId || ("r_" + Date.now()),
-    name: document.getElementById("f-name").value.trim(),
-    category: document.getElementById("f-category").value.trim(),
+    name: name,
+    category: category,
     ingredients: parseIngredientsText(document.getElementById("f-ingredients").value),
     processedFree: document.getElementById("f-processedfree").checked,
     notes: document.getElementById("f-notes").value.trim()

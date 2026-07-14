@@ -248,6 +248,10 @@ button, input, textarea, select{ font-family:inherit; }
 
 .field{ display:block; margin-bottom:14px; font-size:13px; color:var(--ink-soft); }
 .field span{ display:block; margin-bottom:6px; }
+.form-error{
+  color:var(--shu); background:var(--shu-soft); border-radius:10px;
+  padding:10px 12px; font-size:13px; margin:-4px 0 14px;
+}
 .field input, .field textarea, .field select{
   width:100%; padding:11px 12px; border-radius:10px;
   border:1px solid var(--line); background:#fff; font-size:14px; color:var(--ink);
