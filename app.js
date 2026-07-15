@@ -27,7 +27,7 @@ let state = {
   recipes:   load(STORE.recipes, []),
   history:   load(STORE.history, []),
   exclusion: load(STORE.exclusion, []),
-  settings:  load(STORE.settings, { organicPreference: "normal" }),
+  settings:  load(STORE.settings, { organicPreference: "normal", healthMode: false }),
   shopping:  load(STORE.shopping, []),
   currentSuggestion: null,
   editingRecipeId: null,
@@ -78,11 +78,23 @@ function renderHome(){
   }
   const recent = [...state.history].reverse().slice(0,8);
   listEl.innerHTML = recent.map(h=>`
-    <li>
+    <li class="history-item" data-id="${h.id || ""}">
       <span class="hist-date">${h.date}</span>
       ${h.dishes.map(x=>x.name).join(" / ")}
     </li>
   `).join("");
+  listEl.querySelectorAll(".history-item").forEach(li=>{
+    if(!li.dataset.id) return; // 古い形式の履歴(詳細情報なし)はタップ不可
+    li.addEventListener("click", ()=> openHistoryDetail(li.dataset.id));
+  });
+}
+
+function openHistoryDetail(id){
+  const entry = state.history.find(h => h.id === id);
+  if(!entry) return;
+  document.getElementById("history-detail-date").textContent = entry.date + "の献立";
+  document.getElementById("history-detail-set").innerHTML = buildDishSetHtml(entry.dishes);
+  showScreen("screen-history-detail");
 }
 
 /* ---------------- 献立提案エンジン ---------------- */
@@ -114,6 +126,16 @@ function candidatesForCategory(category, exclusionSet){
     const strict = pool.filter(d => d.processedFree);
     if(strict.length > 0) pool = strict;
   }
+
+  if(state.settings.healthMode){
+    const sorted = [...pool].sort((a,b)=>
+      estimateDishCalories(a.ingredients).totalKcal - estimateDishCalories(b.ingredients).totalKcal
+    );
+    // カロリーが低い順に、候補の半分程度(最低2件)に絞り込む
+    const keepCount = Math.max(2, Math.ceil(sorted.length / 2));
+    pool = sorted.slice(0, keepCount);
+  }
+
   return pool;
 }
 
@@ -138,16 +160,8 @@ function generateSuggestion(){
   return dishes;
 }
 
-function renderSuggestion(){
-  const dishes = generateSuggestion();
-  state.currentSuggestion = dishes;
-  const el = document.getElementById("dish-set");
-
-  if(dishes.every(d=>!d)){
-    el.innerHTML = `<div class="note-card"><p class="note-body">条件に合う候補が見つかりませんでした。設定画面で除外食材を見直すか、レシピを追加してみてください。</p></div>`;
-    return;
-  }
-
+// 料理カード一式のHTMLを生成する共通関数(今日の提案・履歴詳細の両方で使う)
+function buildDishSetHtml(dishes){
   let totalKcal = 0;
   let anyExcluded = false;
 
@@ -182,7 +196,20 @@ function renderSuggestion(){
     </div>
   `;
 
-  el.innerHTML = totalHtml + cardsHtml;
+  return totalHtml + cardsHtml;
+}
+
+function renderSuggestion(){
+  const dishes = generateSuggestion();
+  state.currentSuggestion = dishes;
+  const el = document.getElementById("dish-set");
+
+  if(dishes.every(d=>!d)){
+    el.innerHTML = `<div class="note-card"><p class="note-body">条件に合う候補が見つかりませんでした。設定画面で除外食材を見直すか、レシピを追加してみてください。</p></div>`;
+    return;
+  }
+
+  el.innerHTML = buildDishSetHtml(dishes);
 }
 
 document.getElementById("btn-go-suggest").addEventListener("click", ()=>{
@@ -197,8 +224,12 @@ document.getElementById("btn-decide").addEventListener("click", ()=>{
 
   const dateStr = new Date().toLocaleDateString("ja-JP", { month:"numeric", day:"numeric", weekday:"short" });
   state.history.push({
+    id: "h_" + Date.now(),
     date: dateStr,
-    dishes: dishes.map(d=>({ name:d.name, category:d.category }))
+    dishes: dishes.map(d=>({
+      name:d.name, category:d.category, ingredients:d.ingredients,
+      steps:d.steps || [], nutri:d.nutri, processedFree:d.processedFree
+    }))
   });
   save(STORE.history, state.history);
 
@@ -456,6 +487,8 @@ function renderSettings(){
   document.querySelectorAll("#organic-pref input").forEach(r=>{
     r.checked = (r.value === state.settings.organicPreference);
   });
+
+  document.getElementById("f-health-mode").checked = !!state.settings.healthMode;
 }
 
 document.getElementById("form-add-exclusion").addEventListener("submit", (e)=>{
@@ -477,10 +510,15 @@ document.getElementById("organic-pref").addEventListener("change", (e)=>{
   }
 });
 
+document.getElementById("f-health-mode").addEventListener("change", (e)=>{
+  state.settings.healthMode = e.target.checked;
+  save(STORE.settings, state.settings);
+});
+
 document.getElementById("btn-reset-all").addEventListener("click", ()=>{
   if(!confirm("すべてのデータ(レシピ・履歴・買い物リスト・設定)を削除します。よろしいですか?")) return;
   Object.values(STORE).forEach(k=>localStorage.removeItem(k));
-  state = { recipes:[], history:[], exclusion:[], settings:{organicPreference:"normal"}, shopping:[], currentSuggestion:null, editingRecipeId:null, recipeFilter:"all" };
+  state = { recipes:[], history:[], exclusion:[], settings:{organicPreference:"normal", healthMode:false}, shopping:[], currentSuggestion:null, editingRecipeId:null, recipeFilter:"all" };
   toast("初期化しました");
   showScreen("screen-home");
 });

@@ -124,6 +124,8 @@ button, input, textarea, select{ font-family:inherit; }
   font-size:14px;
 }
 .history-list li:last-child{ border-bottom:none; }
+.history-item{ cursor:pointer; }
+.history-item:active{ background:var(--paper-warm); }
 .hist-date{ color:var(--ink-soft); font-size:12px; display:block; margin-bottom:2px;}
 .empty-note{ color:var(--ink-soft); font-size:13px; padding:6px 0; }
 
