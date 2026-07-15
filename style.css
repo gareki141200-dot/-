@@ -127,6 +127,31 @@ button, input, textarea, select{ font-family:inherit; }
 .hist-date{ color:var(--ink-soft); font-size:12px; display:block; margin-bottom:2px;}
 .empty-note{ color:var(--ink-soft); font-size:13px; padding:6px 0; }
 
+/* ---------- カロリー計算 ---------- */
+.full-width{ width:100%; }
+.photo-picker{
+  display:flex; align-items:center; justify-content:center;
+  border:2px dashed var(--line); border-radius:14px;
+  padding:28px 12px; font-size:14px; color:var(--ink-soft);
+  cursor:pointer; text-align:center;
+}
+.calorie-preview{
+  width:100%; border-radius:14px; margin-top:12px; display:block;
+}
+.calorie-result-card{
+  background:var(--paper-warm); border-radius:14px; padding:16px; margin-top:16px;
+}
+.calorie-total{
+  font-family:var(--font-display); font-size:22px; font-weight:700; margin:0 0 10px; color:var(--miso);
+}
+.calorie-food-list{ list-style:none; margin:0 0 10px; padding:0; }
+.calorie-food-list li{
+  display:flex; justify-content:space-between; font-size:13.5px;
+  padding:6px 0; border-bottom:1px solid var(--line);
+}
+.calorie-food-list li:last-child{ border-bottom:none; }
+.calorie-loading{ text-align:center; padding:20px 0; color:var(--ink-soft); font-size:13px; }
+
 /* ---------- 献立提案 ---------- */
 .dish-set{ display:flex; flex-direction:column; gap:12px; margin-bottom:14px; }
 .dish-card{

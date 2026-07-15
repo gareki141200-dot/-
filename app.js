@@ -8,7 +8,8 @@ const STORE = {
   history:   "kondate_history",
   exclusion: "kondate_exclusions",
   settings:  "kondate_settings",
-  shopping:  "kondate_shopping"
+  shopping:  "kondate_shopping",
+  apiKey:    "kondate_api_key"
 };
 
 function load(key, fallback){
@@ -462,6 +463,137 @@ document.getElementById("btn-reset-all").addEventListener("click", ()=>{
   toast("初期化しました");
   showScreen("screen-home");
 });
+
+/* ---------------- AI機能(APIキー) ---------------- */
+function updateApiKeyFieldPlaceholder(){
+  const input = document.getElementById("f-api-key");
+  const saved = localStorage.getItem(STORE.apiKey);
+  input.value = "";
+  input.placeholder = saved ? "登録済み(変更する場合のみ入力)" : "sk-ant-...";
+}
+updateApiKeyFieldPlaceholder();
+
+document.getElementById("btn-save-api-key").addEventListener("click", ()=>{
+  const input = document.getElementById("f-api-key");
+  const value = input.value.trim();
+  if(!value){
+    toast("APIキーを入力してください");
+    return;
+  }
+  localStorage.setItem(STORE.apiKey, value);
+  updateApiKeyFieldPlaceholder();
+  toast("APIキーを保存しました");
+});
+
+/* ---------------- 写真からカロリー計算 ---------------- */
+let calorieImageData = null; // { base64, mediaType }
+
+document.getElementById("btn-go-calorie").addEventListener("click", ()=>{
+  showScreen("screen-calorie");
+});
+
+document.getElementById("calorie-photo-input").addEventListener("change", (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const dataUrl = reader.result; // "data:image/jpeg;base64,xxxxx"
+    const base64 = dataUrl.split(",")[1];
+    calorieImageData = { base64, mediaType: file.type || "image/jpeg" };
+
+    const preview = document.getElementById("calorie-photo-preview");
+    preview.src = dataUrl;
+    preview.hidden = false;
+    document.getElementById("photo-picker-text").textContent = "📷 別の写真に変える";
+    document.getElementById("btn-calc-calorie").disabled = false;
+    document.getElementById("calorie-result-area").innerHTML = "";
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById("btn-calc-calorie").addEventListener("click", async ()=>{
+  const resultArea = document.getElementById("calorie-result-area");
+  const apiKey = localStorage.getItem(STORE.apiKey);
+
+  if(!apiKey){
+    resultArea.innerHTML = `<div class="note-card"><p class="note-body">先に設定画面でAnthropic APIキーを登録してください。</p></div>`;
+    return;
+  }
+  if(!calorieImageData){
+    toast("先に写真を選んでください");
+    return;
+  }
+
+  const calcBtn = document.getElementById("btn-calc-calorie");
+  calcBtn.disabled = true;
+  resultArea.innerHTML = `<p class="calorie-loading">AIが写真を解析しています…</p>`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 1024,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type:"image", source:{ type:"base64", media_type: calorieImageData.mediaType, data: calorieImageData.base64 } },
+              { type:"text", text:
+                "この写真に写っている食事について、写っている料理・食材ごとにおおよその分量とカロリー(kcal)を推定してください。" +
+                "推定はあくまで目安であることを前提に、次のJSON形式のみを出力してください。他の文章やMarkdownの記号は一切含めないでください。\n" +
+                '{"foods":[{"name":"料理名","amount":"目安の分量","kcal":数値}],"total_kcal":合計の数値,"note":"推定に関する簡単な注意点(1文)"}'
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if(!response.ok){
+      const errBody = await response.json().catch(()=>null);
+      const msg = errBody && errBody.error && errBody.error.message ? errBody.error.message : `HTTPエラー ${response.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await response.json();
+    const rawText = (data.content || []).map(c=>c.text || "").join("").trim();
+    const cleaned = rawText.replace(/^```json/i, "").replace(/^```/,"").replace(/```$/,"").trim();
+    const parsed = JSON.parse(cleaned);
+
+    renderCalorieResult(parsed);
+
+  }catch(err){
+    console.error(err);
+    resultArea.innerHTML = `<div class="note-card"><p class="note-body">計算に失敗しました。APIキーが正しいか、通信環境をご確認のうえもう一度お試しください。(${(err.message||"").slice(0,80)})</p></div>`;
+  }finally{
+    calcBtn.disabled = false;
+  }
+});
+
+function renderCalorieResult(parsed){
+  const resultArea = document.getElementById("calorie-result-area");
+  const foods = Array.isArray(parsed.foods) ? parsed.foods : [];
+
+  const foodListHtml = foods.map(f=>`
+    <li><span>${f.name || "不明"}${f.amount ? "(" + f.amount + ")" : ""}</span><span>${f.kcal ?? "?"} kcal</span></li>
+  `).join("");
+
+  resultArea.innerHTML = `
+    <div class="calorie-result-card">
+      <p class="calorie-total">合計 約${parsed.total_kcal ?? "?"} kcal</p>
+      <ul class="calorie-food-list">${foodListHtml}</ul>
+      <p class="note-body">${parsed.note || "AIによる目安の推定値です。実際の栄養量とは異なる場合があります。"}</p>
+    </div>
+  `;
+}
 
 /* ---------------- 初期化 ---------------- */
 renderHome();

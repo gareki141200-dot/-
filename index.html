@@ -43,6 +43,39 @@
         <li class="empty-note">まだ履歴がありません。献立を決めると、ここに並びます。</li>
       </ul>
     </div>
+
+    <div class="paper-block calorie-entry">
+      <div class="block-head">
+        <h2>写真からカロリー計算</h2>
+      </div>
+      <p class="note-body" style="margin-bottom:12px;">食事の写真を撮る(または選ぶ)と、AIがおおよそのカロリーを推定します。</p>
+      <button class="ghost-btn full-width" id="btn-go-calorie">📷 写真からカロリーを計算する</button>
+    </div>
+  </section>
+
+  <!-- ===== カロリー計算 ===== -->
+  <section class="screen" id="screen-calorie" data-screen hidden>
+    <div class="block-head sticky-head">
+      <button class="text-btn" data-back="screen-home">← もどる</button>
+      <h2>写真からカロリー計算</h2>
+    </div>
+
+    <div class="paper-block">
+      <p class="note-body" style="margin-bottom:12px;">
+        この機能はAI(Anthropic API)による画像解析を使うため、インターネット接続と、設定画面で登録したご自身のAPIキーが必要です。推定値は目安であり、実際の栄養量と異なる場合があります。
+      </p>
+
+      <label class="photo-picker" id="photo-picker-label">
+        <input type="file" id="calorie-photo-input" accept="image/*" capture="environment" hidden>
+        <span id="photo-picker-text">📷 タップして写真を撮る・選ぶ</span>
+      </label>
+
+      <img id="calorie-photo-preview" class="calorie-preview" hidden>
+
+      <button class="decide-btn full-width" id="btn-calc-calorie" style="margin-top:14px;" disabled>この写真でカロリーを計算する</button>
+
+      <div id="calorie-result-area"></div>
+    </div>
   </section>
 
   <!-- ===== 献立提案 ===== -->
@@ -164,6 +197,23 @@
     <div class="paper-block">
       <h3 class="sub-head">栄養の参考情報について</h3>
       <p class="note-body">本アプリの栄養関連の表示は、一般に知られる栄養学の知見をもとにした参考情報です。個別の健康状態に応じた診断や治療の代わりにはなりません。</p>
+    </div>
+
+    <div class="paper-block">
+      <h3 class="sub-head">AI機能(写真からのカロリー計算)</h3>
+      <p class="note-body" style="margin-bottom:12px;">
+        「写真からカロリー計算」機能を使うには、ご自身のAnthropic APIキーが必要です。キーはこの端末内にのみ保存され、外部には送信されません(カロリー計算のためのAI通信時のみ、Anthropic社に写真データが送信されます)。利用には少額のAPI利用料がかかる場合があります。
+      </p>
+      <label class="field">
+        <span>Anthropic APIキー</span>
+        <input type="password" id="f-api-key" placeholder="sk-ant-...">
+      </label>
+      <button class="ghost-btn" id="btn-save-api-key">保存する</button>
+      <p class="note-body" style="margin-top:10px;">
+        APIキーの取得方法は
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
+        で確認できます。
+      </p>
     </div>
 
     <div class="paper-block">
