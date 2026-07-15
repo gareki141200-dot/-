@@ -104,6 +104,7 @@ function candidatesForCategory(category, exclusionSet){
     allergens: [],
     processedFree: r.processedFree,
     nutri: r.notes || "登録したご自身のレシピです。",
+    steps: r.steps || [],
     source:"own"
   }));
   let pool = [...builtin, ...own].filter(d => !containsExcluded(d.ingredients, exclusionSet));
@@ -150,11 +151,15 @@ function renderSuggestion(){
     if(!d) return "";
     const roleClass = d.category === "汁物" ? "dish-role soup" : "dish-role";
     const ingList = d.ingredients.map(i=>`${i[0]} ${i[1]}${i[2]}`).join("・");
+    const stepsHtml = (d.steps && d.steps.length > 0)
+      ? `<ol class="dish-steps">${d.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`
+      : "";
     return `
       <div class="dish-card">
         <span class="${roleClass}">${d.category}</span>
         <p class="dish-name">${d.name}</p>
         <p class="dish-ing">${ingList}</p>
+        ${stepsHtml}
         <p class="dish-nutri"><b>栄養メモ:</b> ${d.nutri}</p>
         ${d.processedFree ? `<span class="dish-flag">🌿 加工食品を使わない構成</span>` : ""}
       </div>
@@ -202,7 +207,28 @@ document.getElementById("btn-decide").addEventListener("click", ()=>{
 });
 
 /* ---------------- レシピ管理 ---------------- */
+const BASE_CATEGORIES = ["主菜","副菜","汁物"];
+
+function renderRecipeFilterChips(){
+  const row = document.getElementById("recipe-filter");
+  const customCats = [...new Set(state.recipes.map(r=>r.category))]
+    .filter(c => !BASE_CATEGORIES.includes(c));
+
+  // すべて・主菜・副菜・汁物 は固定。カスタムのカテゴリだけ末尾に追加/更新する
+  row.querySelectorAll(".tab-chip[data-custom='1']").forEach(el=>el.remove());
+  customCats.forEach(cat=>{
+    const btn = document.createElement("button");
+    btn.className = "tab-chip";
+    btn.dataset.cat = cat;
+    btn.dataset.custom = "1";
+    btn.textContent = cat;
+    if(state.recipeFilter === cat) btn.classList.add("active");
+    row.appendChild(btn);
+  });
+}
+
 function renderRecipeList(){
+  renderRecipeFilterChips();
   const el = document.getElementById("recipe-list");
   const filtered = state.recipes.filter(r => state.recipeFilter==="all" || r.category===state.recipeFilter);
   if(filtered.length===0){
@@ -235,6 +261,7 @@ function openRecipeForm(id){
   const modal = document.getElementById("modal-recipe");
   const form = document.getElementById("form-recipe");
   form.reset();
+  document.getElementById("form-error").hidden = true;
   document.getElementById("btn-delete-recipe").hidden = true;
   state.editingRecipeId = null;
 
@@ -246,6 +273,7 @@ function openRecipeForm(id){
       document.getElementById("f-name").value = r.name;
       document.getElementById("f-category").value = r.category;
       document.getElementById("f-ingredients").value = r.ingredients.map(i=>`${i.name} ${i.amount} ${i.unit}`).join("\n");
+      document.getElementById("f-steps").value = (r.steps || []).join("\n");
       document.getElementById("f-processedfree").checked = r.processedFree;
       document.getElementById("f-notes").value = r.notes || "";
       document.getElementById("btn-delete-recipe").hidden = false;
@@ -253,11 +281,27 @@ function openRecipeForm(id){
   } else {
     document.getElementById("recipe-form-title").textContent = "レシピを追加";
   }
+  // CSSの状態に依存せず、確実に表示されるようインラインスタイルで直接指定する
+  modal.style.display = "flex";
   modal.hidden = false;
 }
 document.getElementById("btn-new-recipe").addEventListener("click", ()=> openRecipeForm(null));
-document.getElementById("btn-close-recipe").addEventListener("click", ()=>{
-  document.getElementById("modal-recipe").hidden = true;
+
+function closeRecipeModal(){
+  const modal = document.getElementById("modal-recipe");
+  // CSSの状態に依存せず、確実に非表示になるようインラインスタイルで直接指定する
+  modal.style.display = "none";
+  modal.hidden = true;
+  document.getElementById("form-recipe").reset();
+  document.getElementById("form-error").hidden = true;
+}
+document.getElementById("btn-close-recipe").addEventListener("click", closeRecipeModal);
+
+// モーダルの背景(カードの外側)をタップしたら、保存せずに閉じる
+document.getElementById("modal-recipe").addEventListener("click", (e)=>{
+  if(e.target.id === "modal-recipe"){
+    closeRecipeModal();
+  }
 });
 
 function parseIngredientsText(text){
@@ -274,11 +318,30 @@ function parseIngredientsText(text){
 
 document.getElementById("form-recipe").addEventListener("submit", (e)=>{
   e.preventDefault();
+
+  const errorEl = document.getElementById("form-error");
+  errorEl.hidden = true;
+
+  const name = document.getElementById("f-name").value.trim();
+  const category = document.getElementById("f-category").value.trim();
+
+  // 入力チェック(ブラウザ標準のエラー表示はスクロール内に隠れて見えないことがあるため、
+  // 自前でわかりやすく表示する)
+  if(!name || !category){
+    errorEl.textContent = !name
+      ? "料理名を入力してください。"
+      : "種類を入力してください(例:主菜)。";
+    errorEl.hidden = false;
+    errorEl.scrollIntoView({ block:"center", behavior:"smooth" });
+    return; // ここで処理を止め、モーダルは閉じない
+  }
+
   const recipe = {
     id: state.editingRecipeId || ("r_" + Date.now()),
-    name: document.getElementById("f-name").value.trim(),
-    category: document.getElementById("f-category").value,
+    name: name,
+    category: category,
     ingredients: parseIngredientsText(document.getElementById("f-ingredients").value),
+    steps: document.getElementById("f-steps").value.split("\n").map(s=>s.trim()).filter(Boolean),
     processedFree: document.getElementById("f-processedfree").checked,
     notes: document.getElementById("f-notes").value.trim()
   };
@@ -289,7 +352,7 @@ document.getElementById("form-recipe").addEventListener("submit", (e)=>{
     state.recipes.push(recipe);
   }
   save(STORE.recipes, state.recipes);
-  document.getElementById("modal-recipe").hidden = true;
+  closeRecipeModal();
   renderRecipeList();
   toast("レシピを保存しました");
 });
@@ -299,7 +362,7 @@ document.getElementById("btn-delete-recipe").addEventListener("click", ()=>{
   if(!confirm("このレシピを削除しますか?")) return;
   state.recipes = state.recipes.filter(r=>r.id !== state.editingRecipeId);
   save(STORE.recipes, state.recipes);
-  document.getElementById("modal-recipe").hidden = true;
+  closeRecipeModal();
   renderRecipeList();
   toast("レシピを削除しました");
 });
