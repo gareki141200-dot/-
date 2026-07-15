@@ -85,20 +85,20 @@
     <div class="modal-card">
       <div class="modal-head">
         <h3 id="recipe-form-title">レシピを追加</h3>
+        <button class="text-btn" id="btn-close-recipe">閉じる</button>
       </div>
       <form id="form-recipe">
         <label class="field">
           <span>料理名</span>
-          <input type="text" id="f-name" placeholder="例:鶏むねの生姜焼き">
+          <input type="text" id="f-name" required placeholder="例:鶏むねの生姜焼き">
         </label>
         <label class="field">
-          <span>種類(自由に入力できます。候補をタップも可)</span>
-          <input type="text" id="f-category" list="category-options" placeholder="例:主菜、麺類、お弁当のおかず など">
-          <datalist id="category-options">
-            <option value="主菜">
-            <option value="副菜">
-            <option value="汁物">
-          </datalist>
+          <span>種類</span>
+          <select id="f-category">
+            <option value="主菜">主菜</option>
+            <option value="副菜">副菜</option>
+            <option value="汁物">汁物</option>
+          </select>
         </label>
         <label class="field">
           <span>材料(1行に1つ。例: 鶏むね肉 200 g)</span>
@@ -112,7 +112,6 @@
           <span>メモ・ひとこと</span>
           <textarea id="f-notes" rows="2" placeholder="栄養ポイントや作り方のコツなど"></textarea>
         </label>
-        <p class="form-error" id="form-error" hidden></p>
         <div class="form-actions">
           <button type="button" class="danger-btn" id="btn-delete-recipe" hidden>削除する</button>
           <button type="submit" class="decide-btn small">保存する</button>
