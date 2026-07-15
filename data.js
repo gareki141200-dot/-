@@ -173,3 +173,152 @@ const NUTRITION_NOTES = [
   "厚生労働省の「日本人の食事摂取基準」では、主食・主菜・副菜をそろえたバランスの良い食事が推奨されています。",
   "個別の体質・持病・アレルギーがある場合は、必ず医師・管理栄養士に相談してください。本アプリの情報は一般的な参考情報です。"
 ];
+
+/* =========================================================
+   材料からのカロリー自動計算(完全オフライン・無料)
+   一般的な食品成分の目安値(100gあたりkcal)をもとに概算します。
+   写真AI機能とは異なり、通信も費用も一切発生しません。
+   ========================================================= */
+
+// 食材名(部分一致で検索) → { kcal: 100gあたりのカロリー, unitWeights: 個数単位のグラム目安 }
+const FOOD_DB = [
+  { key:"鶏むね肉", kcal:108, unitWeights:{"枚":250} },
+  { key:"鶏もも肉", kcal:200, unitWeights:{"枚":250} },
+  { key:"鶏ささみ", kcal:105, unitWeights:{"本":40} },
+  { key:"豚こま肉", kcal:221 },
+  { key:"豚薄切り肉", kcal:263 },
+  { key:"豚肉", kcal:221 },
+  { key:"牛こま肉", kcal:259 },
+  { key:"牛肉", kcal:259 },
+  { key:"鮭", kcal:133, unitWeights:{"切れ":80} },
+  { key:"さば", kcal:202, unitWeights:{"切れ":80} },
+  { key:"あじ", kcal:121, unitWeights:{"尾":150} },
+  { key:"白身魚", kcal:77, unitWeights:{"切れ":80} },
+  { key:"卵", kcal:151, unitWeights:{"個":50} },
+  { key:"絹豆腐", kcal:56, unitWeights:{"丁":300} },
+  { key:"木綿豆腐", kcal:72, unitWeights:{"丁":300} },
+  { key:"厚揚げ", kcal:150, unitWeights:{"枚":150} },
+  { key:"油揚げ", kcal:377, unitWeights:{"枚":30} },
+  { key:"蒸し大豆", kcal:180 },
+  { key:"大豆", kcal:180 },
+  { key:"味噌", kcal:192 },
+  { key:"醤油", kcal:71 },
+  { key:"みりん", kcal:241 },
+  { key:"酒", kcal:102 },
+  { key:"砂糖", kcal:384 },
+  { key:"塩", kcal:0 },
+  { key:"こしょう", kcal:0 },
+  { key:"サラダ油", kcal:921 },
+  { key:"ごま油", kcal:921 },
+  { key:"オリーブオイル", kcal:921 },
+  { key:"揚げ油", kcal:0 }, // 吸油量が不明のため計算からは除外扱い
+  { key:"バター", kcal:745 },
+  { key:"片栗粉", kcal:330 },
+  { key:"すりごま", kcal:599 },
+  { key:"酢", kcal:25 },
+  { key:"レモン", kcal:43 },
+  { key:"玉ねぎ", kcal:37, unitWeights:{"個":200} },
+  { key:"にんじん", kcal:39, unitWeights:{"本":150} },
+  { key:"ごぼう", kcal:65, unitWeights:{"本":150} },
+  { key:"大根", kcal:18, unitWeights:{"本":1000, "cm":30} },
+  { key:"キャベツ", kcal:23, unitWeights:{"枚":50} },
+  { key:"ピーマン", kcal:22, unitWeights:{"個":30} },
+  { key:"小松菜", kcal:14, unitWeights:{"束":200} },
+  { key:"ほうれん草", kcal:20, unitWeights:{"束":200} },
+  { key:"しょうが", kcal:30, unitWeights:{"かけ":10} },
+  { key:"にんにく", kcal:136, unitWeights:{"かけ":10} },
+  { key:"長ねぎ", kcal:28, unitWeights:{"本":100} },
+  { key:"万能ねぎ", kcal:27 },
+  { key:"にら", kcal:21, unitWeights:{"束":100} },
+  { key:"もやし", kcal:14, unitWeights:{"袋":200} },
+  { key:"れんこん", kcal:66, unitWeights:{"節":200} },
+  { key:"かぼちゃ", kcal:91, unitWeights:{"個":1200} },
+  { key:"なす", kcal:22, unitWeights:{"本":80} },
+  { key:"ブロッコリー", kcal:33, unitWeights:{"株":200} },
+  { key:"しめじ", kcal:18, unitWeights:{"パック":100} },
+  { key:"きのこ", kcal:20, unitWeights:{"パック":100} },
+  { key:"なめこ", kcal:15, unitWeights:{"袋":100} },
+  { key:"わかめ", kcal:138 },
+  { key:"ひじき", kcal:149 },
+  { key:"切り干し大根", kcal:279 },
+  { key:"酒粕", kcal:227 },
+  { key:"トマト缶", kcal:19, unitWeights:{"缶":400} },
+  { key:"鶏がらだし", kcal:233 },
+  { key:"だし汁", kcal:2 },
+  { key:"ポン酢", kcal:61 },
+  { key:"梅干し", kcal:33, unitWeights:{"個":10} },
+  { key:"大葉", kcal:37, unitWeights:{"枚":1} },
+  { key:"水", kcal:0 }
+];
+
+// 単位ごとの標準的なグラム換算(食材ごとの指定がない場合に使う目安)
+const UNIT_DEFAULT_GRAMS = {
+  "g":1, "kg":1000, "ml":1, "l":1000,
+  "大さじ":15, "小さじ":5, "かけ":10,
+  "本":100, "個":100, "枚":30, "束":200, "丁":300,
+  "パック":100, "切れ":80, "尾":150, "節":150,
+  "缶":400, "cup":200, "cm":30, "袋":200, "株":200
+};
+
+// 分量の文字列(例:"1/2"、"大さじ1")から数値部分を取り出す
+function parseAmountNumber(str){
+  if(!str) return null;
+  const match = String(str).match(/(\d+(?:\.\d+)?)(?:\s*\/\s*(\d+(?:\.\d+)?))?/);
+  if(!match) return null;
+  const whole = parseFloat(match[1]);
+  if(match[2]){
+    const denom = parseFloat(match[2]);
+    return denom ? whole/denom : whole;
+  }
+  return whole;
+}
+
+// 分量の文字列から単位(大さじ、g など)を推測する
+function parseAmountUnit(amountStr, unitStr){
+  const combined = (amountStr || "") + (unitStr || "");
+  const unitKeys = Object.keys(UNIT_DEFAULT_GRAMS).sort((a,b)=>b.length-a.length);
+  for(const u of unitKeys){
+    if(combined.includes(u)) return u;
+  }
+  return unitStr || null;
+}
+
+// 材料1件分(name, amount, unit)を概算グラムに変換
+function ingredientToGrams(name, amountStr, unitStr){
+  const amount = parseAmountNumber(amountStr);
+  if(amount === null) return null; // 「少々」「適量」などは計算対象外
+
+  const unit = parseAmountUnit(amountStr, unitStr);
+  const food = FOOD_DB.find(f => name.includes(f.key) || f.key.includes(name));
+  if(!food) return null; // データベースにない食材は計算対象外
+
+  let gramsPerUnit = null;
+  if(unit === "g" || unit === "kg" || unit === "ml" || unit === "l"){
+    gramsPerUnit = UNIT_DEFAULT_GRAMS[unit];
+  } else if(food.unitWeights && unit && food.unitWeights[unit] !== undefined){
+    gramsPerUnit = food.unitWeights[unit];
+  } else if(unit && UNIT_DEFAULT_GRAMS[unit] !== undefined){
+    gramsPerUnit = UNIT_DEFAULT_GRAMS[unit];
+  } else {
+    gramsPerUnit = 100; // 単位が不明な場合は「1」を100gとして扱う大まかな目安
+  }
+
+  return { grams: amount * gramsPerUnit, kcalPer100g: food.kcal };
+}
+
+// レシピ・料理の材料リストからカロリーを概算する
+// ingredients: [[name, amount, unit], ...] 形式
+// 戻り値: { totalKcal, excludedCount } excludedCountは計算に含められなかった材料数
+function estimateDishCalories(ingredients){
+  let total = 0;
+  let excluded = 0;
+  ingredients.forEach(([name, amount, unit])=>{
+    const result = ingredientToGrams(name, amount, unit);
+    if(result === null){
+      excluded++;
+      return;
+    }
+    total += result.grams * (result.kcalPer100g / 100);
+  });
+  return { totalKcal: Math.round(total), excludedCount: excluded };
+}

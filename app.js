@@ -148,13 +148,20 @@ function renderSuggestion(){
     return;
   }
 
-  el.innerHTML = dishes.map(d=>{
+  let totalKcal = 0;
+  let anyExcluded = false;
+
+  const cardsHtml = dishes.map(d=>{
     if(!d) return "";
     const roleClass = d.category === "汁物" ? "dish-role soup" : "dish-role";
     const ingList = d.ingredients.map(i=>`${i[0]} ${i[1]}${i[2]}`).join("・");
     const stepsHtml = (d.steps && d.steps.length > 0)
       ? `<ol class="dish-steps">${d.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`
       : "";
+    const cal = estimateDishCalories(d.ingredients);
+    totalKcal += cal.totalKcal;
+    if(cal.excludedCount > 0) anyExcluded = true;
+
     return `
       <div class="dish-card">
         <span class="${roleClass}">${d.category}</span>
@@ -162,10 +169,20 @@ function renderSuggestion(){
         <p class="dish-ing">${ingList}</p>
         ${stepsHtml}
         <p class="dish-nutri"><b>栄養メモ:</b> ${d.nutri}</p>
+        <p class="dish-kcal">🔥 約${cal.totalKcal}kcal</p>
         ${d.processedFree ? `<span class="dish-flag">🌿 加工食品を使わない構成</span>` : ""}
       </div>
     `;
   }).join("");
+
+  const totalHtml = `
+    <div class="calorie-total-banner">
+      この献立の合計:約${totalKcal}kcal
+      ${anyExcluded ? '<span class="calorie-total-note">(一部の調味料等は計算に含まれていません)</span>' : ""}
+    </div>
+  `;
+
+  el.innerHTML = totalHtml + cardsHtml;
 }
 
 document.getElementById("btn-go-suggest").addEventListener("click", ()=>{
@@ -236,15 +253,19 @@ function renderRecipeList(){
     el.innerHTML = `<li class="empty-note">レシピがまだありません。右上の「＋」から追加できます。</li>`;
     return;
   }
-  el.innerHTML = filtered.map(r=>`
+  el.innerHTML = filtered.map(r=>{
+    const cal = estimateDishCalories(r.ingredients);
+    const calText = cal.excludedCount < r.ingredients.length ? `約${cal.totalKcal}kcal` : "kcal計算不可";
+    return `
     <li class="recipe-item" data-id="${r.id}">
       <div>
         <p class="recipe-item-name">${r.name}</p>
-        <p class="recipe-item-meta">${r.category} ・ 材料${r.ingredients.length}点${r.processedFree ? " ・ 🌿無添加志向" : ""}</p>
+        <p class="recipe-item-meta">${r.category} ・ 材料${r.ingredients.length}点${r.processedFree ? " ・ 🌿無添加志向" : ""} ・ 🔥${calText}</p>
       </div>
       <span>›</span>
     </li>
-  `).join("");
+  `;
+  }).join("");
   el.querySelectorAll(".recipe-item").forEach(li=>{
     li.addEventListener("click", ()=> openRecipeForm(li.dataset.id));
   });
