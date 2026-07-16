@@ -44,19 +44,11 @@
       </ul>
     </div>
 
-    <div class="paper-block calorie-entry">
-      <div class="block-head">
-        <h2>写真からカロリー計算</h2>
-      </div>
-      <p class="note-body" style="margin-bottom:12px;">食事の写真を撮る(または選ぶ)と、AIがおおよそのカロリーを推定します。</p>
-      <button class="ghost-btn full-width" id="btn-go-calorie">📷 写真からカロリーを計算する</button>
-    </div>
-
     <div class="paper-block">
       <div class="block-head">
         <h2>材料から探す</h2>
       </div>
-      <p class="note-body" style="margin-bottom:12px;">家にある材料を入力すると、それを使えるレシピを探します。</p>
+      <p class="note-body" style="margin-bottom:12px;">家にある材料を入力すると、登録済みレシピの中から使えるものを探します。</p>
       <button class="ghost-btn full-width" id="btn-go-ingredients">🥕 材料から献立を探す</button>
     </div>
   </section>
@@ -88,7 +80,7 @@
   <!-- ===== カロリー計算 ===== -->
   <section class="screen" id="screen-calorie" data-screen hidden>
     <div class="block-head sticky-head">
-      <button class="text-btn" data-back="screen-home">← もどる</button>
+      <button class="text-btn" data-back="screen-ai">← もどる</button>
       <h2>写真からカロリー計算</h2>
     </div>
 
@@ -107,6 +99,54 @@
       <button class="decide-btn full-width" id="btn-calc-calorie" style="margin-top:14px;" disabled>この写真でカロリーを計算する</button>
 
       <div id="calorie-result-area"></div>
+    </div>
+  </section>
+
+  <!-- ===== AI機能メニュー ===== -->
+  <section class="screen" id="screen-ai" data-screen hidden>
+    <div class="block-head">
+      <h2>✨ AI機能</h2>
+    </div>
+    <p class="note-body" style="margin-bottom:16px;">
+      ここにある機能は、インターネット通信とご自身のAnthropic APIキー(設定画面で登録)を使います。利用のたびに少額の料金が発生する場合があります。
+    </p>
+
+    <button class="ai-menu-item" id="btn-go-calorie">
+      <span class="ai-menu-icon">📷</span>
+      <span class="ai-menu-text">
+        <span class="ai-menu-title">写真からカロリー計算</span>
+        <span class="ai-menu-desc">食事の写真から、おおよそのカロリーを推定します</span>
+      </span>
+      <span class="ai-menu-arrow">›</span>
+    </button>
+
+    <button class="ai-menu-item" id="btn-go-ai-recipe">
+      <span class="ai-menu-icon">🥕</span>
+      <span class="ai-menu-text">
+        <span class="ai-menu-title">材料からAIにレシピを考えてもらう</span>
+        <span class="ai-menu-desc">手元の材料を伝えると、AIが新しいレシピを考えます</span>
+      </span>
+      <span class="ai-menu-arrow">›</span>
+    </button>
+  </section>
+
+  <!-- ===== AIにレシピを考えてもらう ===== -->
+  <section class="screen" id="screen-ai-recipe" data-screen hidden>
+    <div class="block-head sticky-head">
+      <button class="text-btn" data-back="screen-ai">← もどる</button>
+      <h2>材料からAIにレシピ提案</h2>
+    </div>
+
+    <div class="paper-block">
+      <p class="note-body" style="margin-bottom:12px;">
+        この機能はAI(Anthropic API)を使うため、インターネット接続と、設定画面で登録したご自身のAPIキーが必要です。
+      </p>
+      <label class="field">
+        <span>手元にある材料(読点・改行区切りで複数入力できます)</span>
+        <textarea id="ai-recipe-ingredients-input" rows="3" placeholder="例:もずく、パスタ、じゃがいも"></textarea>
+      </label>
+      <button class="decide-btn full-width" id="btn-generate-ai-recipe">AIにレシピを考えてもらう</button>
+      <div id="ai-recipe-result-area"></div>
     </div>
   </section>
 
@@ -286,6 +326,9 @@
   </button>
   <button class="nav-btn" data-nav="screen-recipe">
     <span class="nav-icon">📖</span><span>レシピ</span>
+  </button>
+  <button class="nav-btn" data-nav="screen-ai">
+    <span class="nav-icon">✨</span><span>AI</span>
   </button>
   <button class="nav-btn" data-nav="screen-shopping">
     <span class="nav-icon">🧺</span><span>買い物</span>

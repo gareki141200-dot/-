@@ -733,6 +733,118 @@ function renderCalorieResult(parsed){
   `;
 }
 
+document.getElementById("btn-go-ai-recipe").addEventListener("click", ()=>{
+  showScreen("screen-ai-recipe");
+});
+
+/* ---------------- 材料からAIにレシピを考えてもらう ---------------- */
+let lastAiRecipe = null; // 保存ボタン用に、直近でAIが考えたレシピを保持しておく
+
+document.getElementById("btn-generate-ai-recipe").addEventListener("click", async ()=>{
+  const resultArea = document.getElementById("ai-recipe-result-area");
+  const apiKey = localStorage.getItem(STORE.apiKey);
+  const rawInput = document.getElementById("ai-recipe-ingredients-input").value.trim();
+
+  if(!apiKey){
+    resultArea.innerHTML = `<div class="note-card"><p class="note-body">先に設定画面でAnthropic APIキーを登録してください。</p></div>`;
+    return;
+  }
+  if(!rawInput){
+    toast("材料を入力してください");
+    return;
+  }
+
+  const genBtn = document.getElementById("btn-generate-ai-recipe");
+  genBtn.disabled = true;
+  resultArea.innerHTML = `<p class="calorie-loading">AIがレシピを考えています…</p>`;
+  lastAiRecipe = null;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: 1500,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type:"text", text:
+                `次の材料を使って、家庭で作れる料理を1品考えてください。材料:${rawInput}\n` +
+                "この材料に加えて、塩・醤油・油・砂糖などの基本的な調味料は自由に使ってよいものとします。" +
+                "できるだけ加工食品や添加物に頼らない構成にしてください。" +
+                "次のJSON形式のみを出力してください。他の文章やMarkdownの記号は一切含めないでください。\n" +
+                '{"name":"料理名","category":"主菜、副菜、汁物のいずれか","ingredients":[{"name":"材料名","amount":"数量","unit":"単位"}],"steps":["手順1","手順2"],"nutri":"栄養に関する一般的なひとことメモ(医療的な断定は避ける)","processedFree":true}'
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if(!response.ok){
+      const errBody = await response.json().catch(()=>null);
+      const msg = errBody && errBody.error && errBody.error.message ? errBody.error.message : `HTTPエラー ${response.status}`;
+      throw new Error(msg);
+    }
+
+    const data = await response.json();
+    const rawText = (data.content || []).map(c=>c.text || "").join("").trim();
+    const cleaned = rawText.replace(/^```json/i, "").replace(/^```/,"").replace(/```$/,"").trim();
+    const parsed = JSON.parse(cleaned);
+
+    lastAiRecipe = parsed;
+    renderAiRecipeResult(parsed);
+
+  }catch(err){
+    console.error(err);
+    resultArea.innerHTML = `<div class="note-card"><p class="note-body">レシピの生成に失敗しました。APIキーが正しいか、通信環境をご確認のうえもう一度お試しください。(${(err.message||"").slice(0,80)})</p></div>`;
+  }finally{
+    genBtn.disabled = false;
+  }
+});
+
+function renderAiRecipeResult(parsed){
+  const resultArea = document.getElementById("ai-recipe-result-area");
+  const ingredientsArr = Array.isArray(parsed.ingredients) ? parsed.ingredients : [];
+
+  const displayDish = {
+    name: parsed.name || "AIが考えた料理",
+    category: parsed.category || "主菜",
+    ingredients: ingredientsArr.map(i => [i.name || "", i.amount || "", i.unit || ""]),
+    steps: Array.isArray(parsed.steps) ? parsed.steps : [],
+    nutri: parsed.nutri || "",
+    processedFree: !!parsed.processedFree
+  };
+
+  resultArea.innerHTML = buildSingleDishCardHtml(displayDish) +
+    `<button class="decide-btn full-width" id="btn-save-ai-recipe" style="margin-top:12px;">📖 気に入ったのでレシピ帳に保存する</button>`;
+
+  document.getElementById("btn-save-ai-recipe").addEventListener("click", ()=>{
+    if(!lastAiRecipe) return;
+    const recipe = {
+      id: "r_" + Date.now(),
+      name: lastAiRecipe.name || "AIが考えた料理",
+      category: (lastAiRecipe.category || "主菜").trim(),
+      ingredients: ingredientsArr.map(i => ({ name:i.name||"", amount:i.amount||"", unit:i.unit||"" })),
+      steps: Array.isArray(lastAiRecipe.steps) ? lastAiRecipe.steps : [],
+      processedFree: !!lastAiRecipe.processedFree,
+      notes: lastAiRecipe.nutri || ""
+    };
+    state.recipes.push(recipe);
+    save(STORE.recipes, state.recipes);
+    toast("レシピ帳に保存しました");
+    document.getElementById("btn-save-ai-recipe").disabled = true;
+    document.getElementById("btn-save-ai-recipe").textContent = "✓ 保存しました";
+  });
+}
+
 /* ---------------- 初期化 ---------------- */
 renderHome();
 
