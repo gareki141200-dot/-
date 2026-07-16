@@ -51,6 +51,38 @@
       <p class="note-body" style="margin-bottom:12px;">食事の写真を撮る(または選ぶ)と、AIがおおよそのカロリーを推定します。</p>
       <button class="ghost-btn full-width" id="btn-go-calorie">📷 写真からカロリーを計算する</button>
     </div>
+
+    <div class="paper-block">
+      <div class="block-head">
+        <h2>材料から探す</h2>
+      </div>
+      <p class="note-body" style="margin-bottom:12px;">家にある材料を入力すると、それを使えるレシピを探します。</p>
+      <button class="ghost-btn full-width" id="btn-go-ingredients">🥕 材料から献立を探す</button>
+    </div>
+  </section>
+
+  <!-- ===== 材料から探す ===== -->
+  <section class="screen" id="screen-ingredients" data-screen hidden>
+    <div class="block-head sticky-head">
+      <button class="text-btn" data-back="screen-home">← もどる</button>
+      <h2>材料から探す</h2>
+    </div>
+
+    <div class="paper-block">
+      <label class="field">
+        <span>家にある材料(読点・改行区切りで複数入力できます)</span>
+        <textarea id="ingredient-search-input" rows="3" placeholder="例:鶏むね肉、大根、卵"></textarea>
+      </label>
+
+      <div class="radio-row" id="ingredient-search-mode" style="margin-bottom:14px;">
+        <label class="radio-pill"><input type="radio" name="ingmode" value="loose" checked><span>ゆるく提案</span></label>
+        <label class="radio-pill"><input type="radio" name="ingmode" value="strict"><span>手持ちだけで作れるものを優先</span></label>
+      </div>
+
+      <button class="decide-btn full-width" id="btn-search-ingredients">この材料で探す</button>
+    </div>
+
+    <div id="ingredient-search-result"></div>
   </section>
 
   <!-- ===== カロリー計算 ===== -->

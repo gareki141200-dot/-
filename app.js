@@ -160,33 +160,112 @@ function generateSuggestion(){
   return dishes;
 }
 
+/* ---------------- 材料から探す ---------------- */
+// 常備している前提として「持ち合わせ判定」から除外する調味料など
+const COMMON_STAPLES = [
+  "塩","こしょう","醤油","みりん","酒","砂糖","サラダ油","ごま油","オリーブオイル",
+  "バター","片栗粉","だし汁","水","酢","鶏がらだし","すりごま","揚げ油","マヨネーズ",
+  "水溶き片栗粉"
+];
+function isStaple(name){
+  return COMMON_STAPLES.some(s => name.includes(s));
+}
+
+function getAllDishesPool(){
+  const exclusionSet = getExclusionSet();
+  const categories = ["主菜","副菜","汁物"];
+  let pool = [];
+  categories.forEach(cat=>{
+    pool = pool.concat(candidatesForCategory(cat, exclusionSet).map(d=>({...d, category:cat})));
+  });
+  return pool;
+}
+
+function searchDishesByIngredients(searchTerms, mode){
+  const pool = getAllDishesPool();
+
+  const scored = pool.map(d=>{
+    const nonStaple = d.ingredients.filter(([name]) => !isStaple(name));
+    const matched = nonStaple.filter(([name]) =>
+      searchTerms.some(term => name.includes(term) || term.includes(name))
+    );
+    return { dish: d, matchedCount: matched.length, missingCount: nonStaple.length - matched.length, totalNeeded: nonStaple.length };
+  });
+
+  let filtered;
+  if(mode === "strict"){
+    // 手持ちの材料だけで作れるもの:非調味料の材料がすべて揃っているものだけ
+    filtered = scored.filter(s => s.matchedCount > 0 && s.missingCount === 0);
+  } else {
+    // ゆるく提案:1つでも材料が一致すれば候補に含める
+    filtered = scored.filter(s => s.matchedCount > 0);
+  }
+
+  filtered.sort((a,b)=> b.matchedCount - a.matchedCount || a.missingCount - b.missingCount);
+  return filtered.map(s => s.dish);
+}
+
+document.getElementById("btn-go-ingredients").addEventListener("click", ()=>{
+  showScreen("screen-ingredients");
+});
+
+document.getElementById("btn-search-ingredients").addEventListener("click", ()=>{
+  const raw = document.getElementById("ingredient-search-input").value;
+  const searchTerms = raw.split(/[、,\n]/).map(s=>s.trim()).filter(Boolean);
+  const resultArea = document.getElementById("ingredient-search-result");
+
+  if(searchTerms.length === 0){
+    resultArea.innerHTML = `<div class="note-card"><p class="note-body">材料を1つ以上入力してください。</p></div>`;
+    return;
+  }
+
+  const mode = document.querySelector('input[name="ingmode"]:checked').value;
+  const results = searchDishesByIngredients(searchTerms, mode);
+
+  if(results.length === 0){
+    const hint = mode === "strict"
+      ? "手持ちの材料だけで作れるレシピは見つかりませんでした。「ゆるく提案」に切り替えるか、材料を増やして試してみてください。"
+      : "条件に合うレシピが見つかりませんでした。別の材料で試してみてください。";
+    resultArea.innerHTML = `<div class="note-card"><p class="note-body">${hint}</p></div>`;
+    return;
+  }
+
+  const countHtml = `<p class="block-sub" style="margin:16px 0 10px;">${results.length}件見つかりました</p>`;
+  resultArea.innerHTML = countHtml + results.map(d => buildSingleDishCardHtml(d)).join("");
+});
+
 // 料理カード一式のHTMLを生成する共通関数(今日の提案・履歴詳細の両方で使う)
+function buildSingleDishCardHtml(d){
+  const roleClass = d.category === "汁物" ? "dish-role soup" : "dish-role";
+  const ingList = d.ingredients.map(i=>`${i[0]} ${i[1]}${i[2]}`).join("・");
+  const stepsHtml = (d.steps && d.steps.length > 0)
+    ? `<ol class="dish-steps">${d.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`
+    : "";
+  const cal = estimateDishCalories(d.ingredients);
+
+  return `
+    <div class="dish-card">
+      <span class="${roleClass}">${d.category}</span>
+      <p class="dish-name">${d.name}</p>
+      <p class="dish-ing">${ingList}</p>
+      ${stepsHtml}
+      <p class="dish-nutri"><b>栄養メモ:</b> ${d.nutri}</p>
+      <p class="dish-kcal">🔥 約${cal.totalKcal}kcal</p>
+      ${d.processedFree ? `<span class="dish-flag">🌿 加工食品を使わない構成</span>` : ""}
+    </div>
+  `;
+}
+
 function buildDishSetHtml(dishes){
   let totalKcal = 0;
   let anyExcluded = false;
 
   const cardsHtml = dishes.map(d=>{
     if(!d) return "";
-    const roleClass = d.category === "汁物" ? "dish-role soup" : "dish-role";
-    const ingList = d.ingredients.map(i=>`${i[0]} ${i[1]}${i[2]}`).join("・");
-    const stepsHtml = (d.steps && d.steps.length > 0)
-      ? `<ol class="dish-steps">${d.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`
-      : "";
     const cal = estimateDishCalories(d.ingredients);
     totalKcal += cal.totalKcal;
     if(cal.excludedCount > 0) anyExcluded = true;
-
-    return `
-      <div class="dish-card">
-        <span class="${roleClass}">${d.category}</span>
-        <p class="dish-name">${d.name}</p>
-        <p class="dish-ing">${ingList}</p>
-        ${stepsHtml}
-        <p class="dish-nutri"><b>栄養メモ:</b> ${d.nutri}</p>
-        <p class="dish-kcal">🔥 約${cal.totalKcal}kcal</p>
-        ${d.processedFree ? `<span class="dish-flag">🌿 加工食品を使わない構成</span>` : ""}
-      </div>
-    `;
+    return buildSingleDishCardHtml(d);
   }).join("");
 
   const totalHtml = `
