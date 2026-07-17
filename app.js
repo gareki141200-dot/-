@@ -102,11 +102,24 @@ function getExclusionSet(){
   return new Set(state.exclusion.map(s=>s.trim()).filter(Boolean));
 }
 
+// 除外語(同義語・表記ゆれ展開済み)のリストを作る
+function buildExpandedExclusionTerms(exclusionSet){
+  let expanded = [];
+  exclusionSet.forEach(term=>{
+    expanded = expanded.concat(expandExclusionTerm(term));
+  });
+  return expanded.map(normalizeForMatch).filter(Boolean);
+}
+
+// 材料リストの中に、除外語(表記ゆれ・同義語を含む)が含まれていないか判定する
+// アレルギー事故防止のため、判定はできるだけ広く(部分一致・表記ゆれ吸収)行う
 function containsExcluded(ingredients, exclusionSet){
   if(exclusionSet.size === 0) return false;
-  return ingredients.some(([name]) =>
-    [...exclusionSet].some(ex => name.includes(ex) || ex.includes(name))
-  );
+  const expandedTerms = buildExpandedExclusionTerms(exclusionSet);
+  return ingredients.some(([name]) => {
+    const normName = normalizeForMatch(name);
+    return expandedTerms.some(term => normName.includes(term) || term.includes(normName));
+  });
 }
 
 function candidatesForCategory(category, exclusionSet){
@@ -154,7 +167,15 @@ function generateSuggestion(){
   const categories = ["主菜","副菜","汁物"];
   const dishes = categories.map(cat=>{
     const pool = candidatesForCategory(cat, exclusionSet);
-    const picked = pickAvoidingRepeat(pool, cat);
+    let picked = pickAvoidingRepeat(pool, cat);
+
+    // 安全網:万一、除外食材を含む料理が選ばれてしまっていないか最終確認する
+    if(picked && containsExcluded(picked.ingredients, exclusionSet)){
+      console.error("除外食材チェックの安全網が作動しました。この料理は表示されません:", picked.name);
+      const safePool = pool.filter(d => !containsExcluded(d.ingredients, exclusionSet));
+      picked = safePool.length > 0 ? pickAvoidingRepeat(safePool, cat) : null;
+    }
+
     return picked ? {...picked, category:cat} : null;
   });
   return dishes;
@@ -759,6 +780,12 @@ document.getElementById("btn-generate-ai-recipe").addEventListener("click", asyn
   resultArea.innerHTML = `<p class="calorie-loading">AIがレシピを考えています…</p>`;
   lastAiRecipe = null;
 
+  const exclusionSet = getExclusionSet();
+  const exclusionList = [...exclusionSet];
+  const exclusionText = exclusionList.length > 0
+    ? `【厳守】次の食材とその関連食材は、アレルギー・除外設定のため絶対に使用しないでください。少しでも含まれる可能性がある食材(加工品や派生食材を含む)は避けてください:${exclusionList.join("、")}\n`
+    : "";
+
   try{
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -776,6 +803,7 @@ document.getElementById("btn-generate-ai-recipe").addEventListener("click", asyn
             role: "user",
             content: [
               { type:"text", text:
+                exclusionText +
                 `次の材料を使って、家庭で作れる料理を1品考えてください。材料:${rawInput}\n` +
                 "この材料に加えて、塩・醤油・油・砂糖などの基本的な調味料は自由に使ってよいものとします。" +
                 "できるだけ加工食品や添加物に頼らない構成にしてください。" +
@@ -798,6 +826,15 @@ document.getElementById("btn-generate-ai-recipe").addEventListener("click", asyn
     const rawText = (data.content || []).map(c=>c.text || "").join("").trim();
     const cleaned = rawText.replace(/^```json/i, "").replace(/^```/,"").replace(/```$/,"").trim();
     const parsed = JSON.parse(cleaned);
+
+    // 安全網:AIの回答にも念のため、除外食材が含まれていないかローカルで再確認する
+    const parsedIngredientsAsTriples = (Array.isArray(parsed.ingredients) ? parsed.ingredients : [])
+      .map(i => [i.name || "", i.amount || "", i.unit || ""]);
+
+    if(containsExcluded(parsedIngredientsAsTriples, exclusionSet)){
+      resultArea.innerHTML = `<div class="note-card"><p class="note-body">⚠️ AIが提案したレシピに、登録されている除外食材・アレルギー食材が含まれている可能性があるため、表示を中止しました。材料を変えてもう一度お試しください。</p></div>`;
+      return;
+    }
 
     lastAiRecipe = parsed;
     renderAiRecipeResult(parsed);
